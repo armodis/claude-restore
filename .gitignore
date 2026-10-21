@@ -1,0 +1,6 @@
+# Credentials never belong in this repo.
+*.env
+!*.env.example
+.env*
+!.env.example
+*.tsv
