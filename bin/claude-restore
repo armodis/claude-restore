@@ -4,7 +4,9 @@
 # WHY A SNAPSHOT IS NEEDED
 #   Claude Code registers each LIVE session in ~/.claude/sessions/<pid>.json with its
 #   name, sessionId and cwd — and removes the record when the process exits. So after a
-#   reboot that directory tells you nothing. The transcripts under ~/.claude/projects/
+#   reboot that directory tells you nothing. A hard stop (a crash, a kill, WSL shutting
+#   down for an update) can leave a record behind, so --save counts a record as live
+#   only while its pid is running with the recorded start time (procStart). The transcripts under ~/.claude/projects/
 #   are durable, but they carry no session name, and the project-dir encoding of the cwd
 #   is lossy (a '-' may have been '/' or a literal '-').
 #
@@ -105,6 +107,27 @@ def ppid_of(pid):
     except Exception:
         return None
 
+def record_is_live(o):
+    """A record names a running session only if its process still exists AND
+    started when the record says. Claude Code deletes its record on exit, but a
+    hard stop (WSL shutdown for an update, a kill, a crash) leaves it behind;
+    counting it as live would mark the session "seen this boot" and the next
+    save would prune it as deliberately closed. The start-time match also
+    rejects a new process that reused the old pid."""
+    try:
+        pid = int(o.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if not pid:
+        return True  # no pid to check: keep the old behaviour
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            start = f.read().rsplit(") ", 1)[1].split()[19]
+    except Exception:
+        return False
+    ps = o.get("procStart")
+    return ps in (None, "") or str(ps) == start
+
 def window_for(pid):
     """Walk up the process tree until we hit a pane pid."""
     seen, cur = 0, pid
@@ -135,6 +158,8 @@ for fp in glob.glob(os.path.join(home, ".claude/sessions/*.json")):
     sid, cwd = o.get("sessionId") or "", o.get("cwd") or ""
     if not sid or not cwd:
         continue
+    if not record_is_live(o):
+        continue  # stale record from a hard stop; the snapshot row stands
     updated = float(o.get("updatedAt") or 0) or time.time() * 1000
     name = o.get("name") or sid[:8]
     order = window_for(o.get("pid") or 0)

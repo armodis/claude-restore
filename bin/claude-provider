@@ -122,11 +122,18 @@ panes = subprocess.run(["tmux","list-panes","-s","-t",sess,
         "-F","#{window_index}\t#{window_name}\t#{pane_pid}"],
         capture_output=True, text=True).stdout
 
+def started_as_recorded(pid, proc_start):
+    # A record left by a hard stop names a dead pid, which a new process may
+    # reuse; trust it only if that pid started when the record says.
+    try: start = open(f"/proc/{pid}/stat").read().rsplit(") ",1)[1].split()[19]
+    except Exception: return False
+    return proc_start in (None, "") or str(proc_start) == start
+
 live = {}
 for f in glob.glob(os.path.expanduser("~/.claude/sessions/*.json")):
     try: o = json.load(open(f))
     except Exception: continue
-    if o.get("pid") and o.get("sessionId"):
+    if o.get("pid") and o.get("sessionId") and started_as_recorded(int(o["pid"]), o.get("procStart")):
         live[int(o["pid"])] = o["sessionId"]
 
 def ppid(p):
