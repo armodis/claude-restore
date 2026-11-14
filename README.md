@@ -1,5 +1,7 @@
 # claude-restore
 
+> **Moved.** claude-restore now ships as part of [task-mgmt](https://github.com/armodis-ai/task-mgmt), in [`template/claude-restore/`](https://github.com/armodis-ai/task-mgmt/tree/main/template/claude-restore), still under the MIT license. This repo is archived and keeps its history; new fixes land there.
+
 Keep a working set of [Claude Code](https://claude.com/claude-code) sessions alive across reboots, and switch them between the Anthropic API and Amazon Bedrock without losing a conversation.
 
 Two small scripts for people who run several named Claude Code sessions in one tmux session, one window each:
